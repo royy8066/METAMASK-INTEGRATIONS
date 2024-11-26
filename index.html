@@ -1,27 +1,119 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" type="text/css" href="styles.css" />
-  <title>Wallet Connection</title>
+  <link rel="stylesheet" href="styles.css">
+  <title>MetaMask Interaction</title>
 </head>
 <body>
-  <h1>Wallet Connection</h1>
-  <div id="wallet-info">
-    <p id="wallet-address">Wallet Address: <span>Not connected</span></p>
-  </div>
-  <button id="connect-button">Connect Metamask</button>
-  <button id="send-button" disabled>Send Transaction</button>
-
-  <!-- Popup HTML -->
-  <div id="popup" class="popup">
-    <div class="popup-content">
-      <span class="close-btn" onclick="closePopup()">&times;</span>
-      <p>Wallet connected successfully!</p>
-    </div>
+  <div id="background"></div>
+  <div class="container">
+    <h1>TÍCH HỢP METAMASK</h1>
+    <button id="connect-button">Connect MetaMask</button>
+    <button id="disconnect-button" disabled>Disconnect Wallet</button>
+    <button id="check-network-button" disabled>Check Network</button>
+    <p id="account-info">Account: Not connected</p>
+    <p id="balance-info">Balance: 0 ETH</p>
+    <button id="send-button" disabled>Send ETH</button>
   </div>
 
-  <script src="script.js"></script>
+  <script>
+    let account;
+
+    // Kiểm tra MetaMask
+    if (typeof window.ethereum === 'undefined') {
+      alert('MetaMask is not installed. Please install it to use this feature.');
+    }
+
+    // Kết nối MetaMask
+    document.getElementById('connect-button').addEventListener('click', async () => {
+      try {
+        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        account = accounts[0];
+        document.getElementById('account-info').textContent = `Account: ${account}`;
+        document.getElementById('connect-button').textContent = 'Connected';
+        document.getElementById('send-button').disabled = false;
+        document.getElementById('disconnect-button').disabled = false;
+        document.getElementById('check-network-button').disabled = false;
+
+        // Lấy số dư ETH
+        const balance = await ethereum.request({
+          method: 'eth_getBalance',
+          params: [account, 'latest']
+        });
+        const wei = parseInt(balance, 16);
+        const ethBalance = wei / 10 ** 18;
+        document.getElementById('balance-info').textContent = `Balance: ${ethBalance.toFixed(4)} ETH`;
+      } catch (error) {
+        console.error(error);
+        alert('Failed to connect MetaMask.');
+      }
+    });
+
+    // Ngắt kết nối MetaMask
+    document.getElementById('disconnect-button').addEventListener('click', async () => {
+      try {
+        account = null;
+        document.getElementById('account-info').textContent = 'Account: Not connected';
+        document.getElementById('connect-button').textContent = 'Connect MetaMask';
+        document.getElementById('send-button').disabled = true;
+        document.getElementById('disconnect-button').disabled = true;
+        document.getElementById('check-network-button').disabled = true;
+      } catch (error) {
+        console.error(error);
+        alert('Failed to disconnect MetaMask.');
+      }
+    });
+
+    // Kiểm tra mạng
+    document.getElementById('check-network-button').addEventListener('click', async () => {
+      try {
+        const network = await ethereum.request({ method: 'net_version' });
+        alert(`Current network ID: ${network}`);
+      } catch (error) {
+        console.error(error);
+        alert('Failed to check network.');
+      }
+    });
+
+    // Gửi giao dịch ETH
+    document.getElementById('send-button').addEventListener('click', async () => {
+      try {
+        const transactionParams = {
+          to: '0x45B6b39e1Cf8A6b4Ff2720f6BA0089d4574126E5', // Địa chỉ nhận ETH
+          from: account,
+          value: '0x38D7EA4C68000' // 0.01 ETH
+        };
+
+        const txHash = await ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [transactionParams]
+        });
+
+        alert(`Transaction sent! Hash: ${txHash}`);
+        checkTransactionConfirmation(txHash);
+      } catch (error) {
+        console.error(error);
+        alert('Transaction failed.');
+      }
+    });
+
+    // Kiểm tra giao dịch đã xác nhận
+    async function checkTransactionConfirmation(txHash) {
+      const checkLoop = async () => {
+        const receipt = await ethereum.request({
+          method: 'eth_getTransactionReceipt',
+          params: [txHash]
+        });
+        if (receipt) {
+          alert('Transaction confirmed!');
+        } else {
+          setTimeout(checkLoop, 2000); // Lặp lại sau 2 giây
+        }
+      };
+      checkLoop();
+    }
+  </script>
 </body>
 </html>
